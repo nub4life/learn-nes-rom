@@ -47,8 +47,16 @@
                     //Set the start address for code entry to $c000
                     .org $c000
 
+                    // define some labels for things I need to access
                     PPUADDR .equ $2006
                     PPUDATA .equ $2007
+                    BGC_UNI1 .equ $3f       // upper byte of universal bg color VRAM location, write this to PPUADDR
+                    BGC_UNI2 .equ $00       // lower byte of universal bg color VRAM location, write this to PPUADDR
+
+                    // memory addresses to store stuff
+                    MyBGColor .equ $0000
+
+                    // end label definition section
 
 Start               sei             //Disable interrupts
                     cld             //Disable decimal mode
@@ -86,9 +94,9 @@ Start               sei             //Disable interrupts
 @VBlankWait2        bit $2002
                     bpl @VBlankWait2                
 
-                    lda #$3f
+                    lda #BGC_UNI1
                     sta PPUADDR
-                    lda #$00
+                    lda #BGC_UNI2
                     sta PPUADDR
 
                     //Set the background color to purple.
@@ -112,7 +120,7 @@ Controller          lda #$00000001
                         // $4016 = 01100100
                         // c:1
                         // $0000 = 00000000
-                        ror $0000
+                        ror MyBGColor
                         // $0000 = 10000000
                         // c:0
                     .endloop                                    
@@ -121,13 +129,13 @@ Controller          lda #$00000001
 @WaitForScreenRdy   bit $2002
                     bpl @WaitForScreenRdy  
 
-                    lda #$3f
+                    lda #BGC_UNI1
                     sta PPUADDR
-                    lda #$00
+                    lda #BGC_UNI2
                     sta PPUADDR                       
 
                     //Set the background color to controller bits.
-                    lda $0000
+                    lda MyBGColor
                     sta PPUDATA
 
                     jmp Controller
