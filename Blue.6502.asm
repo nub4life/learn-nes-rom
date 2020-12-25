@@ -50,6 +50,7 @@
                     // define some labels for things I need to access
                     PPUADDR .equ $2006
                     PPUDATA .equ $2007
+                    PPUCTRL .equ $2000
                     BGC_UNI1 .equ $3f       // upper byte of universal bg color VRAM location, write this to PPUADDR
                     BGC_UNI2 .equ $00       // lower byte of universal bg color VRAM location, write this to PPUADDR
 
@@ -67,7 +68,7 @@ Start               sei             //Disable interrupts
                     txs             //Set up the stack pointer to $ff
 
                     lda #$00
-                    sta $2000       //Disable NMI
+                    sta PPUCTRL       //Disable NMI
                     sta $2001       //Disable rendering
                     sta $4010       //Disable DMC IRQs
 
@@ -92,7 +93,11 @@ Start               sei             //Disable interrupts
 
                     //Second wait for vblank, PPU is ready after this.
 @VBlankWait2        bit $2002
-                    bpl @VBlankWait2                
+                    bpl @VBlankWait2   
+
+                    //enable NMI
+                    lda #%10000000
+                    sta PPUCTRL             
 
                     lda #BGC_UNI1
                     sta PPUADDR
@@ -124,19 +129,7 @@ Controller          lda #$00000001
                         // $0000 = 10000000
                         // c:0
                     .endloop                                    
-                    // $0000 = 11001001                    
-
-@WaitForScreenRdy   bit $2002
-                    bpl @WaitForScreenRdy  
-
-                    lda #BGC_UNI1
-                    sta PPUADDR
-                    lda #BGC_UNI2
-                    sta PPUADDR                       
-
-                    //Set the background color to controller bits.
-                    lda MyBGColor
-                    sta PPUDATA
+                    // $0000 = 11001001                   
 
                     jmp Controller
 
@@ -149,7 +142,16 @@ Controller          lda #$00000001
                     //-----------------------------------------------------------------------------
 
                     //Handle NMI here, then return with RTI
-NMI                 rti
+NMI                 lda #BGC_UNI1
+                    sta PPUADDR
+                    lda #BGC_UNI2
+                    sta PPUADDR                       
+
+                    //Set the background color to controller bits.
+                    lda MyBGColor
+                    sta PPUDATA
+                    
+                    rti
 
                     //Handle IRQ here, then return with RTI
 IRQ                 rti
