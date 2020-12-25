@@ -55,7 +55,7 @@
                     BGC_UNI2 .equ $00       // lower byte of universal bg color VRAM location, write this to PPUADDR
 
                     // memory addresses to store stuff
-                    MyBGColor .equ $0000
+                    MyBGColor .equ $0001
 
                     // end label definition section
 
@@ -125,11 +125,15 @@ Controller          lda #$00000001
                         // $4016 = 01100100
                         // c:1
                         // $0000 = 00000000
-                        ror MyBGColor
+                        ror $0000
                         // $0000 = 10000000
                         // c:0
                     .endloop                                    
-                    // $0000 = 11001001                   
+                    // $0000 = 11001001
+
+                    // copy $0000 to MyBGColor because $0000 is changing as we're in the interrupt                  
+                    lda $0000
+                    sta MyBGColor
 
                     jmp Controller
 
