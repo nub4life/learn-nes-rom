@@ -51,8 +51,12 @@
                     PPUADDR .equ $2006
                     PPUDATA .equ $2007
                     PPUCTRL .equ $2000
+                    PPUMASK .equ $2001
                     BGC_UNI1 .equ $3f       // upper byte of universal bg color VRAM location, write this to PPUADDR
                     BGC_UNI2 .equ $00       // lower byte of universal bg color VRAM location, write this to PPUADDR
+
+                    NM01 .equ $20
+                    NM02 .equ $00
 
                     // memory addresses to store stuff
                     MyBGColor .equ $0001
@@ -69,7 +73,7 @@ Start               sei             //Disable interrupts
 
                     lda #$00
                     sta PPUCTRL       //Disable NMI
-                    sta $2001       //Disable rendering
+                    sta PPUMASK       //Disable rendering
                     sta $4010       //Disable DMC IRQs
 
                     //First wait for vblank to make sure the PPU is ready.
@@ -93,11 +97,7 @@ Start               sei             //Disable interrupts
 
                     //Second wait for vblank, PPU is ready after this.
 @VBlankWait2        bit $2002
-                    bpl @VBlankWait2   
-
-                    //enable NMI
-                    lda #%10000000
-                    sta PPUCTRL             
+                    bpl @VBlankWait2                
 
                     lda #BGC_UNI1
                     sta PPUADDR
@@ -108,9 +108,53 @@ Start               sei             //Disable interrupts
                     lda #%00110100
                     sta PPUDATA       
 
-                    lda #%00001000
-                    sta $2001
+                    lda #%00011000
+                    sta PPUMASK
 
+                    // use pattern table 1 for background
+                    lda #%00010000
+                    sta PPUCTRL
+
+                    lda #$20
+                    sta PPUADDR
+                    lda #$00
+                    sta PPUADDR
+                    ldx #$24
+                    // clear this silly sprite
+                    .loop 960                        
+                        stx PPUDATA
+                    .endloop
+
+                    // weird issue where the top 25% of the screen doesn't get cleared if this next block of code isn't run
+                    // a more efficient fix would be to update the pattern table such that the "default" location of $FF to empty
+                    lda #$28
+                    sta PPUADDR
+                    lda #$00
+                    sta PPUADDR
+                    // clear this silly sprite
+                    .loop 960                        
+                        stx PPUDATA
+                    .endloop
+
+                    // draw WENDY in the middle of the screen
+                    lda #$21
+                    sta PPUADDR
+                    lda #$EA
+                    sta PPUADDR
+                    ldx #$20
+                    stx PPUDATA
+                    ldx #$0E
+                    stx PPUDATA
+                    ldx #$17
+                    stx PPUDATA
+                    ldx #$0D
+                    stx PPUDATA
+                    ldx #$22
+                    stx PPUDATA  
+
+                    lda #%10010000 // enable NMI
+                    sta PPUCTRL             
+                    
                     // tell the controller we want to see the input
 Controller          lda #$00000001
                     sta $4016
@@ -122,24 +166,14 @@ Controller          lda #$00000001
                         // 11001001
                         lda $4016
                         ror a
-                        // $4016 = 01100100
-                        // c:1
-                        // $0000 = 00000000
                         ror $0000
-                        // $0000 = 10000000
-                        // c:0
                     .endloop                                    
-                    // $0000 = 11001001
 
                     // copy $0000 to MyBGColor because $0000 is changing as we're in the interrupt                  
                     lda $0000
                     sta MyBGColor
 
                     jmp Controller
-
-                    //Infinite loop...
-                    //jmp *
-
 
                     //-----------------------------------------------------------------------------
                     // Interrupt handlers to implement.
